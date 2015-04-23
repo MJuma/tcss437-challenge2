@@ -44,17 +44,32 @@ void wander() {
 }
 
 task LineFollow() {
-	int min = 5;
-	int max = 50;
+	int nMotorSpeedSetting = 20;
+	float nPfactor = 1;
+	int lowest = 0; //Black
+	int highest = 60; //White
+	int grey = (highest - lowest) / 2;
+	float error = 0, oldError = 25;
 	while(true)	{
-		displayCenteredBigTextLine(7, "r light: %d", SensorValue[RightColor]);
-		displayCenteredBigTextLine(10, "l light: %d", SensorValue[LeftColor]);
+		int rightColor = SensorValue[RightColor];
+		int leftColor = SensorValue[LeftColor];
+		displayCenteredBigTextLine(7, "r light: %d", rightColor);
+		displayCenteredBigTextLine(10, "l light: %d", leftColor);
 		switch(RobotState) {
 		case 0: //Wandering - Try to detect a line
-
+			if(grey / 2 > rightColor) {
+				RobotState = 1;
+			}
 			break;
 		case 1: //Found Line - Follow it
-
+			oldError = error;
+			error = SensorValue[RightColor] - grey;
+			// approach grey,
+			float expFunction = (1 - error/grey) * (oldError - error); // approaching grey
+			displayCenteredBigTextLine(1, "r light: %f", expFunction);
+			motor[LeftServo] = nMotorSpeedSetting - round(expFunction * nPfactor);
+			motor[RightServo] = nMotorSpeedSetting + round(expFunction * nPfactor);
+			sleep(10);
 			break;
 		default:
 			break;
@@ -113,6 +128,6 @@ task main() {
 	setSoundVolume(100);
 	srand(random(100000));
 	startTask(LineFollow);
-	startTask(SonarDetect);
+//	startTask(SonarDetect);
 	wander();
 }
