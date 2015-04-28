@@ -43,6 +43,19 @@ void wander() {
 	}
 }
 
+void populate (int *buffer, int pointer, int color) {
+	buffer[pointer] = color;
+}
+
+int average(int *buffer, int size) {
+	int i = 0, avg;
+	for (i = 0; i < size; i++) {
+		avg += buffer[i];
+	}
+	avg /= size;
+	return avg;
+}
+
 task LineFollow() {
 	int nMotorSpeedSetting = 20;
 	float nPfactor = 1;
@@ -50,6 +63,11 @@ task LineFollow() {
 	int highest = 60; //White
 	int grey = (highest - lowest) / 2;
 	float error = 0, oldError = 25;
+	int size = 0;
+	int pointer = 0;
+	int frontColorBuffer[10];
+	int backColorBuffer[10];
+
 	while(true)	{
 		int rightColor = SensorValue[RightColor];
 		int leftColor = SensorValue[LeftColor];
@@ -63,12 +81,22 @@ task LineFollow() {
 			break;
 		case 1: //Found Line - Follow it
 			oldError = error;
+			populate(frontColorBuffer, pointer, rightColor);
+			populate(backColorBuffer, pointer, leftColor);
+			if (grey / 2 > average(frontColorBuffer, size)
+				&& grey / 2 > average(backColorBuffer, size)) {
+				RobotState = 0;
+			}
+			pointer = (pointer + 1) % size;
 			error = SensorValue[RightColor] - grey;
 			// approach grey,
-			float expFunction = (1 - error/grey) * (oldError - error); // approaching grey
-			displayCenteredBigTextLine(1, "r light: %f", expFunction);
-			motor[LeftServo] = nMotorSpeedSetting - round(expFunction * nPfactor);
-			motor[RightServo] = nMotorSpeedSetting + round(expFunction * nPfactor);
+//			float expFunction = nPfactor * (1 - error/grey) * error; // approaching grey
+//			error = round(expFunction);
+
+			displayCenteredBigTextLine(1, "r light: %f", error);
+
+			motor[LeftServo] = nMotorSpeedSetting - (error * nPfactor);
+			motor[RightServo] = nMotorSpeedSetting + (error * nPfactor);
 			sleep(10);
 			break;
 		default:
@@ -103,7 +131,7 @@ void runAway() {
 task SonarDetect() {
 	int distance = 0;
 	while(true)	{
-		distance = SensorValue[Sonar] / 10;
+		distance = SensorValue[Sonar];
 		displayCenteredBigTextLine(4, "Dist: %3d cm", distance);
 		if(RobotState == 2) { //Found object - approach it
 			if (distance <= 96) {
@@ -128,6 +156,6 @@ task main() {
 	setSoundVolume(100);
 	srand(random(100000));
 	startTask(LineFollow);
-//	startTask(SonarDetect);
+	startTask(SonarDetect);
 	wander();
 }
